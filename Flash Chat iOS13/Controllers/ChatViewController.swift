@@ -20,7 +20,7 @@ class ChatViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        tableView.delegate = self
+        
         tableView.dataSource = self
         title = K.appName
         navigationItem.hidesBackButton = true
@@ -50,6 +50,8 @@ class ChatViewController: UIViewController {
                               
                             DispatchQueue.main.async {
                                 self.tableView.reloadData()
+                                let index = IndexPath(row: self.messages.count - 1, section: 0)
+                                self.tableView.scrollToRow(at: index, at: .top, animated: false)
                             }
                         }
                     }
@@ -61,14 +63,18 @@ class ChatViewController: UIViewController {
     @IBAction func sendPressed(_ sender: UIButton) {
         if let messagebody = messageTextfield.text, let messageSender = Auth.auth().currentUser?.email {
             db.collection(K.FStore.collectionName).addDocument(data: [
-                 K.FStore.senderField: messageSender,
-                 K.FStore.bodyField: messagebody,
-                 K.FStore.dateField: Date().timeIntervalSince1970 ])
+                K.FStore.senderField: messageSender,
+                K.FStore.bodyField: messagebody,
+                K.FStore.dateField: Date().timeIntervalSince1970 ])
             {(error) in
                 if let e = error {
                     print("There was an issue saving data to firestore, \(e)")
                 } else {
                     print("Successfully saved data.")
+                    
+                    DispatchQueue.main.async {
+                        self.messageTextfield.text = ""
+                    }
                 }
             }
         }
@@ -92,15 +98,29 @@ extension ChatViewController: UITableViewDataSource {
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let message = messages[indexPath.row]
+        
         let cell = tableView.dequeueReusableCell(withIdentifier: K.cellIdentifier, for: indexPath) as! MessageCell
-        cell.label?.text = messages[indexPath.row].body
+        cell.label?.text = message.body
+        
+        //current user
+        if message.sender == Auth.auth().currentUser?.email {
+            cell.leftImageView.isHidden = true
+            cell.rightImageView.isHidden = false
+            cell.messageBubble.backgroundColor = UIColor(named: K.BrandColors.lightPurple)
+            cell.label.textColor = UIColor(named: K.BrandColors.purple)
+        }
+        //another user
+        else {
+            cell.leftImageView.isHidden = false
+            cell.rightImageView.isHidden = true
+            cell.messageBubble.backgroundColor = UIColor(named: K.BrandColors.purple)
+            cell.label.textColor = UIColor(named: K.BrandColors.lightPurple)
+        }
+        
+        
         return cell
     }
     
 }
 
-extension ChatViewController: UITableViewDelegate {
-    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        
-    }
-}
